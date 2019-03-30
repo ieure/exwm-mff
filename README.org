@@ -1,0 +1,22 @@
+* Mouse Follows Focus
+
+  Many mouse-centric window managers offer a "focus follows mouse" mode,
+  where any window the pointer enters receives focus automatically,
+  without clicking to select it.
+
+  With Emacs' keyboard-centric interaction, windows typically aren't
+  selected with the mouse.  If you subsequently need to interact with
+  the X client using a pointing device, it can be frustrating to find
+  the last place you left it.
+
+  The appropriate model is the inverse of focus follows mouse, where
+  the pointer is moved to the selected window when it becomes active:
+  mouse follows focus.  Which is what this does.
+
+  =EXWM-MFF-MODE= is a global minor mode which places the pointer in
+  the center of the selected Emacs window when focus changes.  It
+  works for both regular Emacs windows and ones managed by EXWM.
+
+  If you don't like the automatic behavior, you can bind
+  =EXWM-MFF-SUMMON= which allows you to summon the pointer with a
+  hotkey.
