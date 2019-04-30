@@ -53,6 +53,19 @@
 (defvar exwm-mff--last-focused-window nil
   "The last window exwm-mff warped to.")
 
+(defun exwm-mff--contains-pointer? (window)
+  "Returns non-NIL when the mouse pointer is within WINDOW?"
+  (with-slots (win-x win-y)
+      (xcb:+request-unchecked+reply exwm--connection
+          (make-instance 'xcb:QueryPointer
+                         :window (frame-parameter (selected-frame)
+                                                  'exwm-outer-id)))
+    (pcase (window-absolute-pixel-edges window)
+      (`(,left ,top ,right ,bottom)
+       (and
+        (<= left win-x right)
+        (<= top win-y bottom))))))
+
 (defun exwm-mff--warp-to (window-id x y)
   "Warp the mouse pointer WINDOW-ID, position X, Y."
   (xcb:+request exwm--connection
@@ -93,10 +106,12 @@
   (interactive)
   "Mouse-Follows-Focus mode hook.
 
-Move the pointer to the currently selected window, but only if
-the selection has changed since the last warp."
-  (let ((sw (selected-window)))
-    (unless (eq exwm-mff--last-focused-window sw)
+Move the pointer to the currently selected window, if it's not already in it."
+  (let* ((sw (selected-window))
+        (contains? (exwm-mff--contains-pointer? sw)))
+    ;; (message "Selecting window %s, contains pointer? %s" sw contains?)
+
+    (unless (or contains? (minibufferp (window-buffer sw)))
       (exwm-mff-warp sw))))
 
 ;;;###autoload
