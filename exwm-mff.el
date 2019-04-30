@@ -4,7 +4,7 @@
 
 ;; Author: Ian Eure <public@lowbar.fyi>
 ;; URL: https://github.com/ieure/exwm-mff
-;; Version: 1.0.0
+;; Version: 1.0.1
 ;; Package-Requires: ((emacs "25") (exwm "0.22.1"))
 ;; Keywords: unix
 
@@ -23,27 +23,30 @@
 
 ;;; Commentary:
 
-;; Many mouse-centric window managers offer a "focus follows mouse"
-;; mode, where any window the pointer enters receives focus
-;; automatically, without clicking to select it.
+;; Many traditional window managers offer a focus-follows-mouse mode,
+;; where moving the pointer over a window gives it input focus, without
+;; the need to click.
 ;;
-;; With Emacs' keyboard-centric interaction, windows typically aren't
-;; selected with the mouse.  If you subsequently need to interact with
-;; the X client using a pointing device, it can be frustrating to find
-;; the last place you left it.
+;; With Emacs' keyboard-centric interaction, windows are typically
+;; selected with the keyboard.  However, using the keyboard breaks the
+;; spatial relationship between focused window and mouse pointer, which
+;; makes it harder to find the pointer location when you need to use
+;; it.
 ;;
-;; The appropriate model is the inverse of focus follows mouse, where
-;; the pointer is moved to the selected window when it becomes active:
-;; mouse follows focus.  Which is what this does.
+;; The appropriate focusing model for this is the inverse of
+;; focus-follows-mouse -- instead of using4 the mouse to select the
+;; window to receive keyboard input, the keyboard should be used to
+;; select the window to receive mouse input.
 ;;
-;; exwm-mff-mode is a global minor mode which places the pointer in
-;; the center of the selected Emacs window when focus changes.  It
-;; works for both regular Emacs windows and ones managed by EXWM.
+;; EXWM-MFF-MODE is a global minor mode which does exactly that.
+;; When the selected window in Emacs changes, the mouse pointer is
+;; moved to the center of it (unless the pointer is already within the
+;; window’s bounds).  It works for both regular Emacs windows
+;; and ones managed by EXWM.
 ;;
 ;; If you don't like the automatic behavior, you can bind
-;; EXWM-MFF-SUMMON which allows you to summon the
+;; EXWM-MFF-WARP-TO-SELECTED-WINDOW which allows you to summon the
 ;; pointer with a hotkey.
-;;
 
 ;;; Code:
 
