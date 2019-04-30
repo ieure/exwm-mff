@@ -45,19 +45,16 @@
 ;; and ones managed by EXWM.
 ;;
 ;; If you don't like the automatic behavior, you can bind
-;; EXWM-MFF-WARP-TO-SELECTED-WINDOW which allows you to summon the
-;; pointer with a hotkey.
+;; EXWM-MFF-WARP-TO-SELECTED which allows you to summon the pointer
+;; with a hotkey.
 
 ;;; Code:
 
 (require 'exwm)
 (require 'xelb)
 
-(defvar exwm-mff--last-focused-window nil
-  "The last window exwm-mff warped to.")
-
 (defun exwm-mff--contains-pointer? (window)
-  "Returns non-NIL when the mouse pointer is within WINDOW?"
+  "Return non-NIL when the mouse pointer is within WINDOW?"
   (with-slots (win-x win-y)
       (xcb:+request-unchecked+reply exwm--connection
           (make-instance 'xcb:QueryPointer
@@ -90,37 +87,30 @@
      (list (+ left (/ (- right left) 2))
            (+ top (/ (- bottom top) 2))))))
 
-(defun exwm-mff--warp-to-window (window)
-  "Place the mouse pointer in the center of WINDOW."
+(defun exwm-mff-warp-to (window)
+  "Place the pointer in the center of WINDOW."
   (apply #'exwm-mff--warp-to exwm--root (exwm-mff--window-center window)))
 
 ;;;###autoload
-(defun exwm-mff-warp (window)
-  "Place the pointer in the center of WINDOW."
-  (exwm-mff--warp-to-window window)
-  (setq exwm-mff--last-focused-window window))
-
-(defun exwm-mff-warp-to-selected-window ()
+(defun exwm-mff-warp-to-selected ()
   "Move the pointer to the selected window."
   (interactive)
-  (exwm-mff-warp (selected-window)))
+  (exwm-mff-warp-to (selected-window)))
 
 (defun exwm-mff-hook ()
-  (interactive)
   "Mouse-Follows-Focus mode hook.
 
 Move the pointer to the currently selected window, if it's not already in it."
-  (let* ((sw (selected-window))
-        (contains? (exwm-mff--contains-pointer? sw)))
-    ;; (message "Selecting window %s, contains pointer? %s" sw contains?)
-
-    (unless (or contains? (minibufferp (window-buffer sw)))
-      (exwm-mff-warp sw))))
+  (let ((sw (selected-window)))
+    (unless (or (exwm-mff--contains-pointer? sw)
+                (minibufferp (window-buffer sw)))
+      (exwm-mff-warp-to sw))))
 
 ;;;###autoload
 (define-minor-mode exwm-mff-mode
   "Mouse follows focus mode for EXWM."
   :global t
+  :require 'exwm-mff
   (if exwm-mff-mode
       (add-hook 'buffer-list-update-hook #'exwm-mff-hook t)
     (remove-hook 'buffer-list-update-hook #'exwm-mff-hook)))

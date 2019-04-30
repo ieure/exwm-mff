@@ -25,5 +25,5 @@
   and ones managed by EXWM.
 
   If you don't like the automatic behavior, you can bind
-  =EXWM-MFF-WARP-TO-SELECTED-WINDOW= which allows you to summon the
-  pointer with a hotkey.
+  =EXWM-MFF-WARP-TO-SELECTED= which allows you to summon the pointer
+  with a hotkey.
