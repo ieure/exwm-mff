@@ -114,6 +114,13 @@
   (interactive)
   (exwm-mff-warp-to (selected-window)))
 
+(defun exwm-mff--explain (contains? mini?)
+  "Using CONTAINS? / MINI?, return a human-readable explanation of exwm-mff."
+  (cond
+   (contains? "already contains pointer")
+   (mini? "is minibuffer")
+   (t "doesn't contain pointer")))
+
 (defun exwm-mff-hook ()
   "Mouse-Follows-Focus mode hook.
 
@@ -121,12 +128,12 @@ Move the pointer to the currently selected window, if it's not already in it."
   (let* ((sw (selected-window))
          (contains? (exwm-mff--contains-pointer? sw))
          (mini? (minibufferp (window-buffer sw))))
-    (if (not (or contains? mini?))
-        (progn (exwm-mff--debug "[%s] Warping to %s, contains? %s minibuffer? %s"
-                                (current-time-string) sw contains? mini?)
-               (exwm-mff-warp-to sw))
-      (exwm-mff--debug "[%s] NOT Warping to %s, contains? %s minibuffer? %s"
-                       (current-time-string) sw contains? mini?))))
+    (if (or contains? mini?)
+        (exwm-mff--debug "[%s] nop-> %s (%s)"
+                         (current-time-string) sw (exwm-mff--explain contains? mini?))
+      (exwm-mff--debug "[%s] warp-> %s (%s)"
+                       (current-time-string) sw (exwm-mff--explain contains? mini?))
+      (exwm-mff-warp-to sw))))
 
 ;;;###autoload
 (define-minor-mode exwm-mff-mode
