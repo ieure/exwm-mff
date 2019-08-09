@@ -53,6 +53,12 @@
 (require 'exwm)
 (require 'xelb)
 
+(defvar exwm-mff--debug 0
+  "Whether (and how) to debug exwm-mff.
+0 = don't debug.
+1 = log messages to *exwm-mff-debug*.
+2 = log messages to *exwm-mff-debug* and the echo area.")
+
 (defun exwm-mff--contains-pointer? (window)
   "Return non-NIL when the mouse pointer is within WINDOW?"
   (with-slots (win-x win-y)
@@ -82,9 +88,14 @@
 
 (defun exwm-mff--debug (string &rest objects)
   "Log debug message STRING, using OBJECTS to format it."
-  (with-current-buffer (get-buffer-create "*exwm-mff-debug*")
-    (goto-char (point-max))
-    (insert (apply #'format (concat string "\n" ) objects))))
+  (when (> exwm-mff--debug 0)
+    (let ((str (apply #'format string objects)))
+      (when (>= exwm-mff--debug 1)
+        (with-current-buffer (get-buffer-create "*exwm-mff-debug*")
+          (goto-char (point-max))
+          (insert (concat str "\n")))
+      (when (>= exwm-mff--debug 2 )
+        (message str))))))
 
 (defun exwm-mff--window-center (window)
   "Return a list of (x y) coordinates of WINDOW."
@@ -110,10 +121,12 @@ Move the pointer to the currently selected window, if it's not already in it."
   (let* ((sw (selected-window))
          (contains? (exwm-mff--contains-pointer? sw))
          (mini? (minibufferp (window-buffer sw))))
-    (unless (or contains? mini?)
-        (exwm-mff--debug "[%s] Warping to window %s, contains? %s minibuffer? %s"
-                         (current-time-string) sw contains? mini?)
-      (exwm-mff-warp-to sw))))
+    (if (not (or contains? mini?))
+        (progn (exwm-mff--debug "[%s] Warping to %s, contains? %s minibuffer? %s"
+                                (current-time-string) sw contains? mini?)
+               (exwm-mff-warp-to sw))
+      (exwm-mff--debug "[%s] NOT Warping to %s, contains? %s minibuffer? %s"
+                       (current-time-string) sw contains? mini?))))
 
 ;;;###autoload
 (define-minor-mode exwm-mff-mode
@@ -121,9 +134,7 @@ Move the pointer to the currently selected window, if it's not already in it."
   :global t
   :require 'exwm-mff
   (if exwm-mff-mode
-      (progn
-        (get-buffer-create "*exwm-mff-debug*")
-        (add-hook 'buffer-list-update-hook #'exwm-mff-hook t))
+      (add-hook 'buffer-list-update-hook #'exwm-mff-hook t)
     (remove-hook 'buffer-list-update-hook #'exwm-mff-hook)))
 
 (provide 'exwm-mff)
