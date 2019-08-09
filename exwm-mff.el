@@ -91,7 +91,7 @@
   (when (> exwm-mff--debug 0)
     (let ((str (apply #'format string objects)))
       (when (>= exwm-mff--debug 1)
-        (with-current-buffer (get-buffer-create "*exwm-mff-debug*")
+        (with-current-buffer (get-buffer-create " *exwm-mff-debug*")
           (goto-char (point-max))
           (insert (concat str "\n")))
       (when (>= exwm-mff--debug 2 )
