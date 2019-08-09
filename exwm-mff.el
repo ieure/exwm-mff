@@ -76,6 +76,13 @@
 1 = log messages to *exwm-mff-debug*.
 2 = log messages to *exwm-mff-debug* and the echo area.")
 
+(defun exwm-mff--guard ()
+  "Raise an error unless EXWM is running."
+  (unless (eq (window-system) 'x)
+    (error "exwm-mff-mode only works under X11."))
+  (unless exwm--connection
+    (error "EXWM must be running for exwm-mff-mode to work.")))
+
 (defun exwm-mff--contains-pointer? (window)
   "Return non-NIL when the mouse pointer is within WINDOW."
   (with-slots (win-x win-y)
@@ -129,6 +136,7 @@
 (defun exwm-mff-warp-to-selected ()
   "Place the pointer in the center of the selected window."
   (interactive)
+  (exwm-mff--guard)
   (exwm-mff-warp-to (selected-window)))
 
 (defun exwm-mff--explain (contains? mini?)
@@ -157,6 +165,7 @@ Move the pointer to the currently selected window, if it's not already in it."
   "Mouse follows focus mode for EXWM."
   :global t
   :require 'exwm-mff
+  (exwm-mff--guard)
   (if exwm-mff-mode
       (add-hook 'buffer-list-update-hook #'exwm-mff-hook t)
     (remove-hook 'buffer-list-update-hook #'exwm-mff-hook)))
