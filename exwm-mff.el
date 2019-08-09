@@ -23,30 +23,47 @@
 
 ;;; Commentary:
 
-;; Many traditional window managers offer a focus-follows-mouse mode,
-;; where moving the pointer over a window gives it input focus, without
-;; the need to click.
+;; Mouse Follows Focus
+;; ===================
 ;;
-;; With Emacs' keyboard-centric interaction, windows are typically
-;; selected with the keyboard.  However, using the keyboard breaks the
-;; spatial relationship between focused window and mouse pointer, which
-;; makes it harder to find the pointer location when you need to use
-;; it.
+;; Traditional window managers are mouse-centric: the window to receive
+;; input is usually selected with the pointing device.
 ;;
-;; The appropriate focusing model for this is the inverse of
-;; focus-follows-mouse -- instead of using4 the mouse to select the
+;; Emacs is keybord-centric: the window to receive key input is usually
+;; selected with the keyboard.  When you use the keyboard to focus a
+;; window, the spatial relationship between pointer and active window is
+;; broken -- the pointer can be anywhere on the screen, instead of over
+;; the active window, which can make it hard to find.
+;;
+;; (The same problem exists in traditional windowing systems when you use
+;; the keyboard to switch windows, e.g. with Alt-Tab.  But we can’t do
+;; anything about that here.)
+;;
+;; Because Emacs’ model is inversed, this suggests that the correct
+;; behavior is also the inverse -- instead of using the mouse to select a
 ;; window to receive keyboard input, the keyboard should be used to
 ;; select the window to receive mouse input.
 ;;
-;; EXWM-MFF-MODE is a global minor mode which does exactly that.
-;; When the selected window in Emacs changes, the mouse pointer is
-;; moved to the center of it (unless the pointer is already within the
-;; window’s bounds).  It works for both regular Emacs windows
-;; and ones managed by EXWM.
+;; `EXWM-MFF-MODE' is a global minor mode which does exactly this.  When
+;; the selected window in Emacs changes, the mouse pointer is moved to
+;; its center, unless the pointer is already somewhere inside the
+;; window’s bounds.  It works for both regular Emacs windows and X11
+;; clients managed by EXWM.
 ;;
-;; If you don't like the automatic behavior, you can bind
-;; EXWM-MFF-WARP-TO-SELECTED which allows you to summon the pointer
-;; with a hotkey.
+;; This package also offers the `EXWM-MFF-WARP-TO-SELECTED' command,
+;; which allows you to summon the pointer with a hotkey.  Unlike the
+;; minor mode, summoning is unconditional, and will place the pointer in
+;; the center of the window even if it already resides within its bounds
+;; -- a handy feature if you’ve lost your pointer, even if you’re using
+;; the minor mode.
+;;
+;;
+;; Limitations
+;; ~~~~~~~~~~~
+;;
+;; Handling of floating frames needs some work; clicking the modeline of
+;; a buffer warps the point to the center of the buffer, rather than
+;; leaving it where it was when clicked.
 
 ;;; Code:
 
@@ -60,7 +77,7 @@
 2 = log messages to *exwm-mff-debug* and the echo area.")
 
 (defun exwm-mff--contains-pointer? (window)
-  "Return non-NIL when the mouse pointer is within WINDOW?"
+  "Return non-NIL when the mouse pointer is within WINDOW."
   (with-slots (win-x win-y)
       (xcb:+request-unchecked+reply exwm--connection
           (make-instance 'xcb:QueryPointer
@@ -98,7 +115,7 @@
         (message str))))))
 
 (defun exwm-mff--window-center (window)
-  "Return a list of (x y) coordinates of WINDOW."
+  "Return a list of (x y) coordinates of the center of WINDOW."
   (pcase (window-absolute-pixel-edges window)
     (`(,left ,top ,right ,bottom)
      (list (+ left (/ (- right left) 2))
@@ -110,7 +127,7 @@
 
 ;;;###autoload
 (defun exwm-mff-warp-to-selected ()
-  "Move the pointer to the selected window."
+  "Place the pointer in the center of the selected window."
   (interactive)
   (exwm-mff-warp-to (selected-window)))
 
