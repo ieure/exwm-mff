@@ -80,6 +80,12 @@
                      :dst-y y))
   (xcb:flush exwm--connection))
 
+(defun exwm-mff--debug (string &rest objects)
+  "Log debug message STRING, using OBJECTS to format it."
+  (with-current-buffer (get-buffer-create "*exwm-mff-debug*")
+    (goto-char (point-max))
+    (insert (apply #'format (concat string "\n" ) objects))))
+
 (defun exwm-mff--window-center (window)
   "Return a list of (x y) coordinates of WINDOW."
   (pcase (window-absolute-pixel-edges window)
@@ -101,9 +107,12 @@
   "Mouse-Follows-Focus mode hook.
 
 Move the pointer to the currently selected window, if it's not already in it."
-  (let ((sw (selected-window)))
-    (unless (or (exwm-mff--contains-pointer? sw)
-                (minibufferp (window-buffer sw)))
+  (let* ((sw (selected-window))
+         (contains? (exwm-mff--contains-pointer? sw))
+         (mini? (minibufferp (window-buffer sw))))
+    (unless (or contains? mini?)
+        (exwm-mff--debug "[%s] Warping to window %s, contains? %s minibuffer? %s"
+                         (current-time-string) sw contains? mini?)
       (exwm-mff-warp-to sw))))
 
 ;;;###autoload
@@ -112,7 +121,9 @@ Move the pointer to the currently selected window, if it's not already in it."
   :global t
   :require 'exwm-mff
   (if exwm-mff-mode
-      (add-hook 'buffer-list-update-hook #'exwm-mff-hook t)
+      (progn
+        (get-buffer-create "*exwm-mff-debug*")
+        (add-hook 'buffer-list-update-hook #'exwm-mff-hook t))
     (remove-hook 'buffer-list-update-hook #'exwm-mff-hook)))
 
 (provide 'exwm-mff)
