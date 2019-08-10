@@ -79,9 +79,9 @@
 (defun exwm-mff--guard ()
   "Raise an error unless EXWM is running."
   (unless (eq (window-system) 'x)
-    (error "exwm-mff-mode only works under X11."))
+    (error "X11 is required to use Exwm-mff-mode"))
   (unless exwm--connection
-    (error "EXWM must be running for exwm-mff-mode to work.")))
+    (error "EXWM must be running for exwm-mff-mode to work")))
 
 (defun exwm-mff--contains-pointer? (window)
   "Return non-NIL when the mouse pointer is within WINDOW."
@@ -140,7 +140,7 @@
   (exwm-mff-warp-to (selected-window)))
 
 (defun exwm-mff--explain (contains? mini?)
-  "Using CONTAINS? / MINI?, return a human-readable explanation of exwm-mff."
+  "Use CONTAINS? and MINI? to return an explanation of focusing behavior."
   (cond
    (contains? "already contains pointer")
    (mini? "is minibuffer")
