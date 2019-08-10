@@ -76,6 +76,9 @@
 1 = log messages to *exwm-mff-debug*.
 2 = log messages to *exwm-mff-debug* and the echo area.")
 
+(defvar exwm-mff--last-window nil
+  "The last selected window.")
+
 (defun exwm-mff--guard ()
   "Raise an error unless EXWM is running."
   (unless (eq (window-system) 'x)
@@ -112,14 +115,15 @@
 
 (defun exwm-mff--debug (string &rest objects)
   "Log debug message STRING, using OBJECTS to format it."
-  (when (> exwm-mff--debug 0)
-    (let ((str (apply #'format string objects)))
-      (when (>= exwm-mff--debug 1)
-        (with-current-buffer (get-buffer-create " *exwm-mff-debug*")
-          (goto-char (point-max))
-          (insert (concat str "\n")))
-      (when (>= exwm-mff--debug 2 )
-        (message str))))))
+  (let ((debug-level (or exwm-mff--debug 0)))
+    (when (> debug-level 0)
+      (let ((str (apply #'format string objects)))
+        (when (>= debug-level 1)
+          (with-current-buffer (get-buffer-create " *exwm-mff-debug*")
+            (goto-char (point-max))
+            (insert (concat str "\n")))
+          (when (>= debug-level 2)
+            (message str)))))))
 
 (defun exwm-mff--window-center (window)
   "Return a list of (x y) coordinates of the center of WINDOW."
@@ -139,10 +143,11 @@
   (exwm-mff--guard)
   (exwm-mff-warp-to (selected-window)))
 
-(defun exwm-mff--explain (contains? mini?)
-  "Use CONTAINS? and MINI? to return an explanation of focusing behavior."
+(defun exwm-mff--explain (same-window? contains-pointer? mini?)
+  "Use SAME-WINDOW?, CONTAINS-POINTER? and MINI? to return an explanation of focusing behavior."
   (cond
-   (contains? "already contains pointer")
+   (same-window? "selected window hasn't changed")
+   (contains-pointer? "already contains pointer")
    (mini? "is minibuffer")
    (t "doesn't contain pointer")))
 
@@ -151,14 +156,15 @@
 
 Move the pointer to the currently selected window, if it's not already in it."
   (let* ((sw (selected-window))
-         (contains? (exwm-mff--contains-pointer? sw))
+         (same-window? (eq sw exwm-mff--last-window))
+         (contains-pointer? (exwm-mff--contains-pointer? sw))
          (mini? (minibufferp (window-buffer sw))))
-    (if (or contains? mini?)
+    (if (or same-window? contains-pointer? mini?)
         (exwm-mff--debug "[%s] nop-> %s (%s)"
-                         (current-time-string) sw (exwm-mff--explain contains? mini?))
+                         (current-time-string) sw (exwm-mff--explain same-window? contains-pointer? mini?))
       (exwm-mff--debug "[%s] warp-> %s (%s)"
-                       (current-time-string) sw (exwm-mff--explain contains? mini?))
-      (exwm-mff-warp-to sw))))
+                       (current-time-string) sw (exwm-mff--explain same-window? contains-pointer? mini?))
+      (exwm-mff-warp-to (setq exwm-mff--last-window sw)))))
 
 ;;;###autoload
 (define-minor-mode exwm-mff-mode
