@@ -88,16 +88,18 @@
 
 (defun exwm-mff--contains-pointer? (window)
   "Return non-NIL when the mouse pointer is within WINDOW."
-  (with-slots (win-x win-y)
-      (xcb:+request-unchecked+reply exwm--connection
-          (make-instance 'xcb:QueryPointer
-                         :window (frame-parameter (selected-frame)
-                                                  'exwm-outer-id)))
-    (pcase (window-absolute-pixel-edges window)
-      (`(,left ,top ,right ,bottom)
-       (and
-        (<= left win-x right)
-        (<= top win-y bottom))))))
+  (let ((fp (frame-parameter (selected-frame) 'exwm-outer-id)))
+    (if fp
+        (with-slots (win-x win-y)
+            (xcb:+request-unchecked+reply exwm--connection
+                (make-instance 'xcb:QueryPointer
+                               :window fp))
+          (pcase (window-absolute-pixel-edges window)
+            (`(,left ,top ,right ,bottom)
+             (and
+              (<= left win-x right)
+              (<= top win-y bottom)))))
+      t)))
 
 (defun exwm-mff--warp-to (window-id x y)
   "Warp the mouse pointer WINDOW-ID, position X, Y."
