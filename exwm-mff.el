@@ -90,18 +90,18 @@
     (error "EXWM must be running for exwm-mff-mode to work")
     (setq exwm-mff-mode -1)))
 
-(defun exwm-mff--contains-pointer? (window)
-  "Return non-NIL when the mouse pointer is within WINDOW."
+(defun exwm-mff--contains-pointer? (frame window)
+  "Return non-NIL when the mouse pointer is within FRAME and WINDOW."
   (with-slots (win-x win-y)
       (xcb:+request-unchecked+reply exwm--connection
-          (make-instance 'xcb:QueryPointer
-                         :window (frame-parameter (selected-frame)
-                                                  'exwm-outer-id)))
-    (pcase (window-absolute-pixel-edges window)
-      (`(,left ,top ,right ,bottom)
-       (and
-        (<= left win-x right)
-        (<= top win-y bottom))))))
+          (xcb:QueryPointer :window (frame-parameter frame 'exwm-outer-id)))
+
+    (cl-destructuring-bind (frame-x frame-y _ _)  (frame-edges frame)
+      (pcase (window-absolute-pixel-edges window)
+        (`(,left ,top ,right ,bottom)
+         (and
+          (<= left (+ frame-x win-x) right)
+          (<= top (+ frame-y win-y) bottom)))))))
 
 (defun exwm-mff--warp-to (window-id x y)
   "Warp the mouse pointer WINDOW-ID, position X, Y."
@@ -165,15 +165,16 @@
   "Mouse-Follows-Focus mode hook.
 
 Move the pointer to the currently selected window, if it's not already in it."
-  (let* ((sw (selected-window))
+  (let* ((sf (selected-frame))
+         (sw (selected-window))
          (same-window? (eq sw exwm-mff--last-window))
-         (contains-pointer? (exwm-mff--contains-pointer? sw))
+         (contains-pointer? (exwm-mff--contains-pointer? sf sw))
          (mini? (minibufferp (window-buffer sw))))
     (if (or same-window? contains-pointer? mini?)
-        (exwm-mff--debug "[%s] nop-> %s (%s)"
-                         (current-time-string) sw (exwm-mff--explain same-window? contains-pointer? mini?))
-      (exwm-mff--debug "[%s] warp-> %s (%s)"
-                       (current-time-string) sw (exwm-mff--explain same-window? contains-pointer? mini?))
+        (exwm-mff--debug "nop-> %s::%s (%s)"
+                          sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
+      (exwm-mff--debug "warp-> %s::%s (%s)"
+                        sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
       (exwm-mff-warp-to (setq exwm-mff--last-window sw)))))
 
 ;;;###autoload
