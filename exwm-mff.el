@@ -82,7 +82,7 @@
 (defun exwm-mff--guard ()
   "Raise an error unless EXWM is running."
   (unless (eq (window-system) 'x)
-    (error "X11 is required to use Exwm-mff-mode"))
+    (error "X11 is required to use exwm-mff-mode"))
   (unless exwm--connection
     (error "EXWM must be running for exwm-mff-mode to work")
     (setq exwm-mff-mode -1)))
