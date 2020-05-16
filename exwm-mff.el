@@ -73,6 +73,9 @@
 (defconst exwm-mff--debug-buffer " *exwm-mff-debug*"
   "Name of the buffer exwm-mff will write debug messages into.")
 
+(defconst exwm-mff--debounce .1
+  "Amount of time to delay between the hook firing and moving the pointer.")
+
 (defvar exwm-mff--debug 0
   "Whether (and how) to debug exwm-mff.
 0 = don't debug.
@@ -81,6 +84,9 @@
 
 (defvar exwm-mff--last-window nil
   "The last selected window.")
+
+(defvar exwm-mff--debounce-timer nil
+  "Timer to debounce exwm-mff hook events.")
 
 (defun exwm-mff--guard ()
   "Raise an error unless EXWM is running."
@@ -161,21 +167,45 @@
    (mini? "is minibuffer")
    (t "doesn't contain pointer")))
 
+(defun exwm-mff--hook* ()
+  "Mouse-Follows-Focus mode hook (internal).
+
+Move the pointer to the currently selected window, if it's not
+already in it."
+  (let* ((sw (selected-window))
+         (same-window? (eq sw exwm-mff--last-window)))
+    (if same-window?
+        ;; The selected window is unchanged, we don't need to check
+        ;; anything else.
+        (exwm-mff--debug "nop-> (selected window unchanged)")
+
+      (let* ((sf (selected-frame))
+             (contains-pointer? (exwm-mff--contains-pointer? sf sw))
+             (mini? (minibufferp (window-buffer sw))))
+        (if (or same-window? contains-pointer? mini?)
+            (exwm-mff--debug "nop-> %s::%s (%s)"
+                             sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
+          (exwm-mff--debug "warp-> %s::%s (%s)"
+                           sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
+          (exwm-mff-warp-to (setq exwm-mff--last-window sw)))))))
+
+(defmacro exwm-mff--oneshot (timer delay &rest body)
+  "Run BODY after DELAY seconds, using TIMER to debounce."
+  `(progn
+     (when ,timer (cancel-timer ,timer))
+     (setq ,timer (run-with-timer ,delay nil
+                                  (lambda ()
+                                    (setq ,timer nil)
+                                    ,@body)))))
+
 (defun exwm-mff-hook ()
   "Mouse-Follows-Focus mode hook.
 
-Move the pointer to the currently selected window, if it's not already in it."
-  (let* ((sf (selected-frame))
-         (sw (selected-window))
-         (same-window? (eq sw exwm-mff--last-window))
-         (contains-pointer? (exwm-mff--contains-pointer? sf sw))
-         (mini? (minibufferp (window-buffer sw))))
-    (if (or same-window? contains-pointer? mini?)
-        (exwm-mff--debug "nop-> %s::%s (%s)"
-                          sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
-      (exwm-mff--debug "warp-> %s::%s (%s)"
-                        sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
-      (exwm-mff-warp-to (setq exwm-mff--last-window sw)))))
+Move pointer to the currently selected window after
+EXWM-MFF--DEBOUNCE seconds, if it's not already in it."
+  (exwm-mff--oneshot exwm-mff--debounce-timer exwm-mff--debounce
+                     (exwm-mff--hook*)))
+
 
 ;;;###autoload
 (define-minor-mode exwm-mff-mode
