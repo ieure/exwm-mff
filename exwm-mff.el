@@ -70,6 +70,9 @@
 (require 'exwm)
 (require 'xelb)
 
+(defconst exwm-mff--debug-buffer " *exwm-mff-debug*"
+  "Name of the buffer exwm-mff will write debug messages into.")
+
 (defvar exwm-mff--debug 0
   "Whether (and how) to debug exwm-mff.
 0 = don't debug.
@@ -118,13 +121,19 @@
   "Log debug message STRING, using OBJECTS to format it."
   (let ((debug-level (or exwm-mff--debug 0)))
     (when (> debug-level 0)
-      (let ((str (apply #'format string objects)))
+      (let ((str (apply #'format (concat "[%s] " string) (cons (current-time-string) objects))))
         (when (>= debug-level 1)
-          (with-current-buffer (get-buffer-create " *exwm-mff-debug*")
+          (with-current-buffer (get-buffer-create exwm-mff--debug-buffer)
             (goto-char (point-max))
             (insert (concat str "\n")))
           (when (>= debug-level 2)
             (message str)))))))
+
+(defun exwm-mff-show-debug ()
+  "Enable exwm-mff debugging, and show the buffer with debug logs."
+  (interactive)
+  (setq exwm-mff--debug 1)
+  (pop-to-buffer (get-buffer-create exwm-mff--debug-buffer)))
 
 (defun exwm-mff--window-center (window)
   "Return a list of (x y) coordinates of the center of WINDOW."
