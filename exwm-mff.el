@@ -84,7 +84,8 @@
   (unless (eq (window-system) 'x)
     (error "X11 is required to use Exwm-mff-mode"))
   (unless exwm--connection
-    (error "EXWM must be running for exwm-mff-mode to work")))
+    (error "EXWM must be running for exwm-mff-mode to work")
+    (setq exwm-mff-mode -1)))
 
 (defun exwm-mff--contains-pointer? (window)
   "Return non-NIL when the mouse pointer is within WINDOW."
