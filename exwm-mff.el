@@ -159,13 +159,13 @@
   (exwm-mff--guard)
   (exwm-mff-warp-to (selected-window)))
 
-(defun exwm-mff--explain (same-window? contains-pointer? mini?)
+(defun exwm-mff--explain (selected-window same-window? contains-pointer? mini?)
   "Use SAME-WINDOW?, CONTAINS-POINTER? and MINI? to return an explanation of focusing behavior."
   (cond
    (same-window? "selected window hasn't changed")
    (contains-pointer? "already contains pointer")
    (mini? "is minibuffer")
-   (t "doesn't contain pointer")))
+   (t (format "doesn't contain pointer (in %s)" selected-window))))
 
 (defun exwm-mff--hook* ()
   "Mouse-Follows-Focus mode hook (internal).
@@ -184,7 +184,7 @@ already in it."
              (mini? (minibufferp (window-buffer sw))))
         (if (or same-window? contains-pointer? mini?)
             (exwm-mff--debug "nop-> %s::%s (%s)"
-                             sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
+                             sf sw (exwm-mff--explain sw same-window? contains-pointer? mini?))
           (exwm-mff--debug "warp-> %s::%s (%s)"
                            sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
           (exwm-mff-warp-to (setq exwm-mff--last-window sw)))))))
