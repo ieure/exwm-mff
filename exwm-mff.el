@@ -1,6 +1,6 @@
 ;;; exwm-mff.el --- Mouse Follows Focus           -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019  Ian Eure
+;; Copyright (C) 2019, 2020  Ian Eure
 
 ;; Author: Ian Eure <public@lowbar.fyi>
 ;; URL: https://github.com/ieure/exwm-mff
