@@ -35,13 +35,3 @@
   in the center of the window even if it already resides within its
   bounds -- a handy feature if you’ve lost your pointer, even if
   you’re using the minor mode.
-
-
-** Limitations
-   :PROPERTIES:
-   :ID:       05d08412-f8d2-4e46-a892-c0473050e696
-   :END:
-
-   Handling of floating frames needs some work; clicking the modeline
-   of a buffer warps the point to the center of the buffer, rather
-   than leaving it where it was when clicked.
