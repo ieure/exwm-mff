@@ -84,17 +84,12 @@
   (unless (display-mouse-p)
     (error "EXWM-MFF-MODE doesn't work without mouse support")))
 
-(defun exwm-mff--contains-pointer? (frame window)
+(defun exwm-mff--contains-pointer? (window)
   "Return non-NIL when the mouse pointer is within FRAME and WINDOW."
-  (cl-destructuring-bind ((mouse-frame mouse-x . mouse-y) (left top right bottom))
-      (list (mouse-pixel-position) (window-pixel-edges window))
-    (and (eq frame mouse-frame)
-         ;; The OR is because when switching to a workspace with an
-         ;; EXWM-managed window, the timing means that mouse-x/y are
-         ;; sometimes NIL, which causes "and: Wrong type argument:
-         ;; number-or-marker-p, nil"
-         (<= left (or mouse-x 0) right)
-         (<= top (or mouse-y 0) bottom))))
+  (cl-destructuring-bind ((mouse-x . mouse-y) (left top right bottom))
+      (list (mouse-absolute-pixel-position) (window-absolute-pixel-edges window))
+    (and (<= left mouse-x right)
+         (<= top mouse-y bottom))))
 
 (defun exwm-mff--debug (string &rest objects)
   "Log debug message STRING, using OBJECTS to format it."
@@ -154,7 +149,7 @@ nil, and if it's not already in it."
          "nop-> %s" (exwm-mff--explain sw same-window? nil nil))
 
       (let* ((sf (window-frame sw))
-             (contains-pointer? (exwm-mff--contains-pointer? sf sw))
+             (contains-pointer? (exwm-mff--contains-pointer? sw))
              (mini? (minibufferp (window-buffer sw))))
         (if (or same-window? contains-pointer? mini?)
             (exwm-mff--debug
