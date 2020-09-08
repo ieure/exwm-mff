@@ -4,8 +4,8 @@
 
 ;; Author: Ian Eure <public@lowbar.fyi>
 ;; URL: https://github.com/ieure/exwm-mff
-;; Version: 1.1.0
-;; Package-Requires: ((emacs "25") (exwm "0.22.1"))
+;; Version: 1.2.0
+;; Package-Requires: ((emacs "25"))
 ;; Keywords: unix
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -35,20 +35,19 @@
 ;; broken -- the pointer can be anywhere on the screen, instead of over
 ;; the active window, which can make it hard to find.
 ;;
-;; (The same problem exists in traditional windowing systems when you use
-;; the keyboard to switch windows, e.g. with Alt-Tab.  But we can’t do
-;; anything about that here.)
+;; The same problem also exists in traditional windowing systems when
+;; you use the keyboard to switch windows, e.g. with Alt-Tab.
 ;;
-;; Because Emacs’ model is inversed, this suggests that the correct
-;; behavior is also the inverse -- instead of using the mouse to select a
-;; window to receive keyboard input, the keyboard should be used to
-;; select the window to receive mouse input.
+;; Because Emacs’ model is inverted, this suggests that the correct
+;; behavior is also the inverse -- instead of using the mouse to
+;; select a window to receive keyboard input, the keyboard should be
+;; used to select the window to receive mouse input.
 ;;
-;; `EXWM-MFF-MODE' is a global minor mode which does exactly this.  When
-;; the selected window in Emacs changes, the mouse pointer is moved to
-;; its center, unless the pointer is already somewhere inside the
-;; window’s bounds.  It works for both regular Emacs windows and X11
-;; clients managed by EXWM.
+;; `EXWM-MFF-MODE' is a global minor mode which does exactly this.
+;; When the selected window in Emacs changes, the mouse pointer is
+;; moved to its center, unless the pointer is already somewhere inside
+;; the window’s bounds.  While it's especially helpful for for EXWM
+;; users, it works for any Emacs window in a graphical session.
 ;;
 ;; This package also offers the `EXWM-MFF-WARP-TO-SELECTED' command,
 ;; which allows you to summon the pointer with a hotkey.  Unlike the
@@ -61,9 +60,7 @@
 ;; Limitations
 ;; ~~~~~~~~~~~
 ;;
-;; Handling of floating frames needs some work; clicking the modeline of
-;; a buffer warps the point to the center of the buffer, rather than
-;; leaving it where it was when clicked.
+;; None known at this time.
 
 ;;; Code:
 
@@ -72,9 +69,6 @@
 
 (defconst exwm-mff--debug-buffer " *exwm-mff-debug*"
   "Name of the buffer exwm-mff will write debug messages into.")
-
-(defconst exwm-mff--debounce .1
-  "Amount of time to delay between the hook firing and moving the pointer.")
 
 (defvar exwm-mff--debug 0
   "Whether (and how) to debug exwm-mff.
@@ -85,43 +79,22 @@
 (defvar exwm-mff--last-window nil
   "The last selected window.")
 
-(defvar exwm-mff--debounce-timer nil
-  "Timer to debounce exwm-mff hook events.")
-
 (defun exwm-mff--guard ()
-  "Raise an error unless EXWM is running."
-  (unless (eq (window-system) 'x)
-    (error "X11 is required to use exwm-mff-mode"))
-  (unless exwm--connection
-    (error "EXWM must be running for exwm-mff-mode to work")
-    (setq exwm-mff-mode -1)))
+  "Raise an error unless this is a graphical session."
+  (unless (display-mouse-p)
+    (error "EXWM-MFF-MODE doesn't work without mouse support")))
 
 (defun exwm-mff--contains-pointer? (frame window)
   "Return non-NIL when the mouse pointer is within FRAME and WINDOW."
-  (with-slots (win-x win-y)
-      (xcb:+request-unchecked+reply exwm--connection
-          (xcb:QueryPointer :window (frame-parameter frame 'exwm-outer-id)))
-
-    (cl-destructuring-bind (frame-x frame-y _ _)  (frame-edges frame)
-      (pcase (window-absolute-pixel-edges window)
-        (`(,left ,top ,right ,bottom)
-         (and
-          (<= left (+ frame-x win-x) right)
-          (<= top (+ frame-y win-y) bottom)))))))
-
-(defun exwm-mff--warp-to (window-id x y)
-  "Warp the mouse pointer WINDOW-ID, position X, Y."
-  (xcb:+request exwm--connection
-      (make-instance 'xcb:WarpPointer
-                     :src-window xcb:Window:None
-                     :dst-window window-id
-                     :src-x 0
-                     :src-y 0
-                     :src-width 0
-                     :src-height 0
-                     :dst-x x
-                     :dst-y y))
-  (xcb:flush exwm--connection))
+  (cl-destructuring-bind ((mouse-frame mouse-x . mouse-y) (left top right bottom))
+      (list (mouse-pixel-position) (window-pixel-edges window))
+    (and (eq frame mouse-frame)
+         ;; The OR is because when switching to a workspace with an
+         ;; EXWM-managed window, the timing means that mouse-x/y are
+         ;; sometimes NIL, which causes "and: Wrong type argument:
+         ;; number-or-marker-p, nil"
+         (<= left (or mouse-x 0) right)
+         (<= top (or mouse-y 0) bottom))))
 
 (defun exwm-mff--debug (string &rest objects)
   "Log debug message STRING, using OBJECTS to format it."
@@ -141,71 +114,54 @@
   (setq exwm-mff--debug 1)
   (pop-to-buffer (get-buffer-create exwm-mff--debug-buffer)))
 
-(defun exwm-mff--window-center (window)
-  "Return a list of (x y) coordinates of the center of WINDOW."
-  (pcase (window-absolute-pixel-edges window)
+(defun exwm-mff--window-center (frame window)
+  "Return a list of (x y) coordinates of the center of WINDOW in FRAME."
+  (pcase (window-pixel-edges window)
     (`(,left ,top ,right ,bottom)
      (list (+ left (/ (- right left) 2))
            (+ top (/ (- bottom top) 2))))))
 
-(defun exwm-mff-warp-to (window)
-  "Place the pointer in the center of WINDOW."
-  (apply #'exwm-mff--warp-to exwm--root (exwm-mff--window-center window)))
+(defun exwm-mff-warp-to (frame window)
+  "Place the pointer in the center of WINDOW in FRAME."
+  (apply #' set-mouse-pixel-position frame (exwm-mff--window-center frame window)))
 
 ;;;###autoload
 (defun exwm-mff-warp-to-selected ()
   "Place the pointer in the center of the selected window."
   (interactive)
   (exwm-mff--guard)
-  (exwm-mff-warp-to (selected-window)))
+  (exwm-mff-warp-to (selected-frame) (selected-window)))
 
 (defun exwm-mff--explain (selected-window same-window? contains-pointer? mini?)
-  "Use SAME-WINDOW?, CONTAINS-POINTER? and MINI? to return an explanation of focusing behavior."
+  "Use SELECTED-WINDOW, SAME-WINDOW?, CONTAINS-POINTER? and MINI? to return an explanation of focusing behavior."
   (cond
    (same-window? "selected window hasn't changed")
    (contains-pointer? "already contains pointer")
    (mini? "is minibuffer")
    (t (format "doesn't contain pointer (in %s)" selected-window))))
 
-(defun exwm-mff--hook* ()
-  "Mouse-Follows-Focus mode hook (internal).
+(defun exwm-mff-hook (sw &optional norecord)
+  "EXWM-MFF-MODE hook.
 
-Move the pointer to the currently selected window, if it's not
-already in it."
-  (let* ((sw (selected-window))
-         (same-window? (eq sw exwm-mff--last-window)))
-    (if same-window?
+This is after-advice placed on SELECT-WINDOW.  It moves the
+pointer to SW (the currently selected window), if NORECORD is
+nil, and if it's not already in it."
+  (unless norecord
+    (if-let ((same-window? (eq sw exwm-mff--last-window)))
         ;; The selected window is unchanged, we don't need to check
         ;; anything else.
-        (exwm-mff--debug "nop-> (selected window unchanged)")
+        (exwm-mff--debug
+         "nop-> %s" (exwm-mff--explain sw same-window? nil nil))
 
-      (let* ((sf (selected-frame))
+      (let* ((sf (window-frame sw))
              (contains-pointer? (exwm-mff--contains-pointer? sf sw))
              (mini? (minibufferp (window-buffer sw))))
         (if (or same-window? contains-pointer? mini?)
-            (exwm-mff--debug "nop-> %s::%s (%s)"
-                             sf sw (exwm-mff--explain sw same-window? contains-pointer? mini?))
-          (exwm-mff--debug "warp-> %s::%s (%s)"
-                           sf sw (exwm-mff--explain same-window? contains-pointer? mini?))
-          (exwm-mff-warp-to (setq exwm-mff--last-window sw)))))))
-
-(defmacro exwm-mff--oneshot (timer delay &rest body)
-  "Run BODY after DELAY seconds, using TIMER to debounce."
-  `(progn
-     (when ,timer (cancel-timer ,timer))
-     (setq ,timer (run-with-timer ,delay nil
-                                  (lambda ()
-                                    (setq ,timer nil)
-                                    ,@body)))))
-
-(defun exwm-mff-hook ()
-  "Mouse-Follows-Focus mode hook.
-
-Move pointer to the currently selected window after
-EXWM-MFF--DEBOUNCE seconds, if it's not already in it."
-  (exwm-mff--oneshot exwm-mff--debounce-timer exwm-mff--debounce
-                     (exwm-mff--hook*)))
-
+            (exwm-mff--debug
+             "nop-> %s::%s (%s)" sf sw (exwm-mff--explain sw nil contains-pointer? mini?))
+          (exwm-mff--debug
+           "warp-> %s::%s (%s)" sf sw (exwm-mff--explain sw nil contains-pointer? mini?))
+          (exwm-mff-warp-to sf (setq exwm-mff--last-window sw)))))))
 
 ;;;###autoload
 (define-minor-mode exwm-mff-mode
@@ -214,8 +170,8 @@ EXWM-MFF--DEBOUNCE seconds, if it's not already in it."
   :require 'exwm-mff
   (exwm-mff--guard)
   (if exwm-mff-mode
-      (add-hook 'buffer-list-update-hook #'exwm-mff-hook t)
-    (remove-hook 'buffer-list-update-hook #'exwm-mff-hook)))
+      (advice-add 'select-window :after #'exwm-mff-hook)
+    (advice-remove 'select-window #'exwm-mff-hook)))
 
 (provide 'exwm-mff)
 
