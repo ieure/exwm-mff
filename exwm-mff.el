@@ -64,6 +64,7 @@
 
 ;;; Code:
 
+(require 'subr-x)
 (require 'exwm)
 (require 'xelb)
 
