@@ -141,7 +141,7 @@ behavior."
    (same-window? "selected window hasn't changed")
    (contains-pointer? "already contains pointer")
    (mini? "is minibuffer")
-   (ignore? "one or more functions in `exwm-mff-ignore-if' matches")
+   (ignored? "one or more functions in `exwm-mff-ignore-if' matches")
    (t (format "doesn't contain pointer (in %s)" selected-window))))
 
 (defun exwm-mff-hook (sw &optional norecord)
@@ -161,7 +161,7 @@ nil, and if it's not already in it."
              (contains-pointer? (exwm-mff--contains-pointer? sw))
              (mini? (minibufferp (window-buffer sw)))
              (ignore? (run-hook-with-args-until-success 'exwm-mff-ignore-if sw)))
-        (if (or same-window? contains-pointer? mini? filtered-by-user?)
+        (if (or same-window? contains-pointer? mini? ignore?)
             (exwm-mff--debug
              "nop-> %s::%s (%s)" sf sw (exwm-mff--explain sw nil contains-pointer? mini? ignore?))
           (exwm-mff--debug
