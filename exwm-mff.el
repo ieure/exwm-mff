@@ -68,6 +68,11 @@
 (require 'exwm)
 (require 'xelb)
 
+(defcustom exwm-mff-ignore-if nil
+  "List of predicate functions for windows to ignore.  Predicates accept one argument, WINDOW, and return non-NIL if automatic pointer warping should be suppressed."
+  :type 'hook
+  :group 'exwm-mff)
+
 (defconst exwm-mff--debug-buffer " *exwm-mff-debug*"
   "Name of the buffer exwm-mff will write debug messages into.")
 
@@ -128,12 +133,15 @@
   (exwm-mff--guard)
   (exwm-mff-warp-to (selected-frame) (selected-window)))
 
-(defun exwm-mff--explain (selected-window same-window? contains-pointer? mini?)
-  "Use SELECTED-WINDOW, SAME-WINDOW?, CONTAINS-POINTER? and MINI? to return an explanation of focusing behavior."
+(defun exwm-mff--explain (selected-window same-window? contains-pointer? mini? ignored?)
+  "Use SELECTED-WINDOW, SAME-WINDOW?, CONTAINS-POINTER?, MINI?
+and IGNORED? to return an explanation of focusing
+behavior."
   (cond
    (same-window? "selected window hasn't changed")
    (contains-pointer? "already contains pointer")
    (mini? "is minibuffer")
+   (ignore? "one or more functions in `exwm-mff-ignore-if' matches")
    (t (format "doesn't contain pointer (in %s)" selected-window))))
 
 (defun exwm-mff-hook (sw &optional norecord)
@@ -147,16 +155,17 @@ nil, and if it's not already in it."
         ;; The selected window is unchanged, we don't need to check
         ;; anything else.
         (exwm-mff--debug
-         "nop-> %s" (exwm-mff--explain sw same-window? nil nil))
+         "nop-> %s" (exwm-mff--explain sw same-window? nil nil nil))
 
       (let* ((sf (window-frame sw))
              (contains-pointer? (exwm-mff--contains-pointer? sw))
-             (mini? (minibufferp (window-buffer sw))))
-        (if (or same-window? contains-pointer? mini?)
+             (mini? (minibufferp (window-buffer sw)))
+             (ignore? (run-hook-with-args-until-success 'exwm-mff-ignore-if sw)))
+        (if (or same-window? contains-pointer? mini? filtered-by-user?)
             (exwm-mff--debug
-             "nop-> %s::%s (%s)" sf sw (exwm-mff--explain sw nil contains-pointer? mini?))
+             "nop-> %s::%s (%s)" sf sw (exwm-mff--explain sw nil contains-pointer? mini? ignore?))
           (exwm-mff--debug
-           "warp-> %s::%s (%s)" sf sw (exwm-mff--explain sw nil contains-pointer? mini?))
+           "warp-> %s::%s (%s)" sf sw (exwm-mff--explain sw nil contains-pointer? mini? ignore?))
           (exwm-mff-warp-to sf (setq exwm-mff--last-window sw)))))))
 
 ;;;###autoload
